@@ -1,0 +1,6 @@
+[package]
+name = "tyr"
+version = "0.1.0"
+authors = ["cjkenn <cam.j.kennedy@gmail.com>"]
+
+[dependencies]
