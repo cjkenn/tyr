@@ -35,16 +35,16 @@ fn execute(instr: &OpCode) {
         OpCode::PRINT(message) => {
             println!("{}", message);
         },
-        OpCode::ADD(x, y) => {
+        OpCode::ADD((x, y)) => {
             println!("{}", x + y);
         },
-        OpCode::SUB(x, y) => {
+        OpCode::SUB((x, y)) => {
             println!("{}", x - y);
         },
-        OpCode::MUL(x, y) => {
+        OpCode::MUL((x, y)) => {
             println!("{}", x * y);
         },
-        OpCode::DIV(x, y) => {
+        OpCode::DIV((x, y)) => {
             println!("{}", x / y);
         },
         OpCode::NOP => {},
@@ -82,9 +82,8 @@ fn parse_line_into_op(line: String) -> OpCode {
         return OpCode::NOP;
     }
 
-    // TODO: Check for missing args here, on ops that need them
-
-    match get_op_from_str(words) {
+    // TODO: Better error handling other than panic?
+    match get_op_from_str(&words) {
         Ok(result) => result,
         Err(error) => panic!("tyr: {:?}", error)
     }
