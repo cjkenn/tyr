@@ -7,7 +7,7 @@ use std::fs::File;
 use std::error::Error;
 use std::io::prelude::*;
 use std::io::BufReader;
-use tyr::op::OpCode;
+use tyr::op::{OpCode, get_op_from_str};
 
 fn main() {
     let filename = env::args().nth(1).unwrap_or_else(|| {
@@ -46,7 +46,8 @@ fn execute(instr: &OpCode) {
         },
         OpCode::DIV(x, y) => {
             println!("{}", x / y);
-        }
+        },
+        OpCode::NOP => {},
     }
 }
 
@@ -54,17 +55,37 @@ fn read_file(filename: String) -> Vec<OpCode> {
     let path = Path::new(&filename);
     let display = path.display();
 
-    let mut input_file = match File::open(&path) {
+    let input_file = match File::open(&path) {
         Err(error) => panic!("tyr: Failed to open {}: {}", display, Error::description(&error)),
         Ok(file) => file
     };
 
     let reader = BufReader::new(input_file);
-    let instructions: Vec<OpCode> = Vec::new();
+    let mut instructions: Vec<OpCode> = Vec::new();
 
-    reader.lines().map(|line| {
-        // TODO: Parse line here, convert the String to an OpCode enum
-    });
+    for line in reader.lines() {
+        match line {
+            Err(_) => panic!("tyr: cannot parse line {:?}", line),
+            Ok(result) => {
+                let op = parse_line_into_op(result);
+                instructions.push(op);
+            }
+        }
+    };
 
     instructions
+}
+
+fn parse_line_into_op(line: String) -> OpCode {
+    let words: Vec<&str> = line.split(' ').collect();
+    if words.is_empty() {
+        return OpCode::NOP;
+    }
+
+    // TODO: Check for missing args here, on ops that need them
+
+    match get_op_from_str(words) {
+        Ok(result) => result,
+        Err(error) => panic!("tyr: {:?}", error)
+    }
 }
