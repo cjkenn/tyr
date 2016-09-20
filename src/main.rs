@@ -18,6 +18,10 @@ fn main() {
     let mut pc = 0;
 
     loop {
+        if pc >= prog.len() {
+            break;
+        }
+
         let ref curr_instr = prog[pc];
         execute(curr_instr);
 
@@ -25,11 +29,11 @@ fn main() {
     }
 }
 
-// TODO: Make return an Ok?
 fn execute(instr: &OpCode) {
+    // TODO: Make these actually do something other than print eventually
     match instr.clone() {
         OpCode::HALT => {
-            println!("Halt instruction detected, exiting...");
+            println!("tyr: Halt instruction detected, exiting...");
             process::exit(0);
         },
         OpCode::PRINT(message) => {
