@@ -1,6 +1,5 @@
 extern crate tyr;
 
-use std::process;
 use std::env;
 use std::path::Path;
 use std::fs::File;

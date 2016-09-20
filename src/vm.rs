@@ -53,3 +53,8 @@ impl<'p> Vm<'p> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+}
