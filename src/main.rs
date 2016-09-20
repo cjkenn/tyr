@@ -8,6 +8,7 @@ use std::error::Error;
 use std::io::prelude::*;
 use std::io::BufReader;
 use tyr::op::{OpCode, get_op_from_str};
+use tyr::vm::Vm;
 
 fn main() {
     let filename = env::args().nth(1).unwrap_or_else(|| {
@@ -15,44 +16,9 @@ fn main() {
     });
 
     let prog = read_file(filename);
-    let mut pc = 0;
+    let mut vm = Vm::new(&prog);
 
-    loop {
-        if pc >= prog.len() {
-            break;
-        }
-
-        let ref curr_instr = prog[pc];
-        execute(curr_instr);
-
-        pc = pc + 1;
-    }
-}
-
-fn execute(instr: &OpCode) {
-    // TODO: Make these actually do something other than print eventually
-    match instr.clone() {
-        OpCode::HALT => {
-            println!("tyr: Halt instruction detected, exiting...");
-            process::exit(0);
-        },
-        OpCode::PRINT(message) => {
-            println!("{}", message);
-        },
-        OpCode::ADD((x, y)) => {
-            println!("{}", x + y);
-        },
-        OpCode::SUB((x, y)) => {
-            println!("{}", x - y);
-        },
-        OpCode::MUL((x, y)) => {
-            println!("{}", x * y);
-        },
-        OpCode::DIV((x, y)) => {
-            println!("{}", x / y);
-        },
-        OpCode::NOP => {},
-    }
+    vm.run();
 }
 
 fn read_file(filename: String) -> Vec<OpCode> {
