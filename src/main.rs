@@ -6,7 +6,7 @@ use std::fs::File;
 use std::error::Error;
 use std::io::prelude::*;
 use std::io::BufReader;
-use tyr::op::{OpCode, get_op_from_str};
+use tyr::op::{OpCode, lex};
 use tyr::vm::Vm;
 
 fn main() {
@@ -52,7 +52,8 @@ fn parse_line_into_op(line: String) -> OpCode {
     }
 
     // TODO: Better error handling other than panic?
-    match get_op_from_str(&words) {
+    // TODO: Split lex function into an actual lexer?
+    match lex(&words) {
         Ok(result) => result,
         Err(error) => panic!("tyr: {:?}", error)
     }
