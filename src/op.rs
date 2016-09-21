@@ -8,6 +8,10 @@ pub enum OpCode {
     SUB,
     MUL,
     DIV,
+    MOD,
+    AND,
+    OR,
+    NEG,
     HALT,
     NOP
 }
@@ -34,6 +38,10 @@ pub fn lex(op_vec: &Vec<&str>) -> Result<OpCode, OpError> {
         "SUB" => Ok(OpCode::SUB),
         "MUL" => Ok(OpCode::MUL),
         "DIV" => Ok(OpCode::DIV),
+        "MOD" => Ok(OpCode::MOD),
+        "AND" => Ok(OpCode::AND),
+        "OR" => Ok(OpCode::OR),
+        "NEG" => Ok(OpCode::NEG),
         "LOADC" => {
             let arg = try!(extract_arg(op_vec));
             Ok(OpCode::LOADC(arg))

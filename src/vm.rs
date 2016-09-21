@@ -40,6 +40,10 @@ impl<'p> Vm<'p> {
             OpCode::SUB => self.sub(),
             OpCode::MUL => self.mul(),
             OpCode::DIV => self.div(),
+            OpCode::MOD => self.modq(),
+            OpCode::AND => self.and(),
+            OpCode::OR => self.or(),
+            OpCode::NEG => self.neg(),
             OpCode::HALT => process::exit(0),
             OpCode::PRINT(message) => println!("{}", message),
             OpCode::NOP => {}
@@ -84,6 +88,25 @@ impl<'p> Vm<'p> {
         // TODO: This might not work?
         self.stack[self.sp] = self.stack[self.sp] / self.stack[self.sp-1];
         self.decrement_sp();
+    }
+
+    fn modq(&mut self) {
+        self.stack[self.sp] = self.stack[self.sp] % self.stack[self.sp-1];
+        self.decrement_sp();
+    }
+
+    fn and(&mut self) {
+        self.stack[self.sp] = self.stack[self.sp] & self.stack[self.sp-1];
+        self.decrement_sp();
+    }
+
+    fn or(&mut self) {
+        self.stack[self.sp] = self.stack[self.sp] | self.stack[self.sp-1];
+        self.decrement_sp();
+    }
+
+    fn neg(&mut self) {
+        self.stack[self.sp] = -self.stack[self.sp];
     }
 }
 
