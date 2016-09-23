@@ -16,7 +16,6 @@ impl Parser {
             return Ok(OpCode::NOP);
         }
 
-        // TODO: More general handling of getting args
         match op_vec[0] {
             "PRINT" => Ok(OpCode::PRINT(op_vec[1].to_owned())),
             "HALT" => Ok(OpCode::HALT),
@@ -29,6 +28,10 @@ impl Parser {
             "AND" => Ok(OpCode::AND),
             "OR" => Ok(OpCode::OR),
             "NEG" => Ok(OpCode::NEG),
+            "LOAD" => Ok(OpCode::LOAD),
+            "STORE" => Ok(OpCode::STORE),
+            "JMP" => Ok(OpCode::JMP),
+            "JMPZ" => Ok(OpCode::JMPZ),
             "LOADC" => {
                 let arg = try!(self.extract_arg(&op_vec));
                 Ok(OpCode::LOADC(arg))

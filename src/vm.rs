@@ -45,6 +45,10 @@ impl<'p> Vm<'p> {
             OpCode::OR => self.or(),
             OpCode::NEG => self.neg(),
             OpCode::HALT => process::exit(0),
+            OpCode::LOAD => self.load(),
+            OpCode::STORE => self.store(),
+            OpCode::JMP => self.jmp(),
+            OpCode::JMPZ => self.jmpz(),
             OpCode::PRINT(message) => println!("{}", message),
             OpCode::NOP => {}
         }
@@ -107,6 +111,38 @@ impl<'p> Vm<'p> {
 
     fn neg(&mut self) {
         self.stack[self.sp] = -self.stack[self.sp];
+    }
+
+    fn load(&mut self) {
+        let load_val = self.maybe_i64_to_usize(self.stack[self.sp])
+            .unwrap_or_else(|| panic!("tyr: Attempted to load an illegal value."));
+
+        self.stack[self.sp] = self.stack[load_val];
+    }
+
+    fn store(&mut self) {
+        let store_val = self.maybe_i64_to_usize(self.stack[self.sp])
+            .unwrap_or_else(|| panic!("tyr: Attempted to store and illegal value."));
+
+        self.stack[store_val] = self.stack[self.sp - 1];
+        self.decrement_sp();
+    }
+
+    fn jmp(&mut self) {
+
+    }
+
+    fn jmpz(&mut self) {
+
+    }
+
+    // TODO: Probably shouldn't belong to this struct
+    fn maybe_i64_to_usize(&self, num: i64) -> Option<usize> {
+        if num < 0 {
+            return None;
+        }
+
+        Some(num as usize)
     }
 }
 

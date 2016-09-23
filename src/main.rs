@@ -17,8 +17,8 @@ fn main() {
 
     let parser = Parser::new();
     let prog = read_file(filename, parser);
-    // TODO: Could make this JIT by using the parse_lineer in vm,
-    // parse_lineing a line and then executing it in the execute loop
+    // TODO: Could make this JIT by using the parser in vm,
+    // parse a line and then executing it in the execute loop
     let mut vm = Vm::new(&prog);
 
     vm.run();

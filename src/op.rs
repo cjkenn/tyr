@@ -4,6 +4,8 @@ use std::num;
 pub enum OpCode {
     PRINT(String),
     LOADC(i64),
+    LOAD,
+    STORE,
     ADD,
     SUB,
     MUL,
@@ -13,6 +15,8 @@ pub enum OpCode {
     OR,
     NEG,
     HALT,
+    JMP,
+    JMPZ,
     NOP
 }
 
