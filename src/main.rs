@@ -8,21 +8,23 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use tyr::op::OpCode;
 use tyr::vm::Vm;
-use tyr::lexer::Lexer;
+use tyr::parser::Parser;
 
 fn main() {
     let filename = env::args().nth(1).unwrap_or_else(|| {
         panic!("tyr: Expected an input file to execute.");
     });
 
-    let lexer = Lexer::new();
-    let prog = read_file(filename, lexer);
+    let parser = Parser::new();
+    let prog = read_file(filename, parser);
+    // TODO: Could make this JIT by using the parse_lineer in vm,
+    // parse_lineing a line and then executing it in the execute loop
     let mut vm = Vm::new(&prog);
 
     vm.run();
 }
 
-fn read_file(filename: String, lexer: Lexer) -> Vec<OpCode> {
+fn read_file(filename: String, parser: Parser) -> Vec<OpCode> {
     let path = Path::new(&filename);
     let display = path.display();
 
@@ -39,7 +41,7 @@ fn read_file(filename: String, lexer: Lexer) -> Vec<OpCode> {
             Err(_) => panic!("tyr: cannot parse line {:?}", line),
             Ok(result) => {
                 // TODO: Make this a try?
-                let op = match lexer.lex(&result) {
+                let op = match parser.parse_line(&result) {
                     Ok(op) => op,
                     Err(error) => panic!("tyr: {:?}", error)
                 };
