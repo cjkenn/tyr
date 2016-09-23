@@ -24,7 +24,7 @@ fn main() {
     vm.run();
 }
 
-fn read_file(filename: String, parser: Parser) -> Vec<OpCode> {
+fn read_file(filename: String, mut parser: Parser) -> Vec<OpCode> {
     let path = Path::new(&filename);
     let display = path.display();
 

@@ -1,13 +1,39 @@
 use op::OpCode;
 use std::process;
+use std::collections::HashMap;
 
 const STACK_SIZE: usize = 50;
+
+pub struct JmpTable {
+    table: HashMap<String, usize>
+}
+
+impl JmpTable {
+    pub fn new() -> JmpTable {
+        JmpTable {
+            table: HashMap::new()
+        }
+    }
+
+    pub fn insert(&mut self, key: String, val: usize) {
+        self.table.insert(key, val);
+    }
+
+    pub fn get(&self, key: &String) -> Option<&usize> {
+        self.table.get(key)
+    }
+
+    pub fn is_duplicate(&self, key: &String) -> bool {
+        self.table.get(key).is_some()
+    }
+}
 
 pub struct Vm<'p> {
     prog: &'p Vec<OpCode>,
     pc: usize,
     stack: [i64; STACK_SIZE],
-    sp: usize
+    sp: usize,
+    jmp_table: JmpTable
 }
 
 impl<'p> Vm<'p> {
@@ -16,7 +42,8 @@ impl<'p> Vm<'p> {
             prog: program,
             pc: 0,
             stack: [0; STACK_SIZE],
-            sp: 0
+            sp: 0,
+            jmp_table: JmpTable::new()
         }
     }
 
@@ -47,9 +74,17 @@ impl<'p> Vm<'p> {
             OpCode::HALT => process::exit(0),
             OpCode::LOAD => self.load(),
             OpCode::STORE => self.store(),
-            OpCode::JMP => self.jmp(),
-            OpCode::JMPZ => self.jmpz(),
+            OpCode::JMP(label) => self.jmp(label),
+            OpCode::JMPZ(label) => self.jmpz(label),
             OpCode::PRINT(message) => println!("{}", message),
+            OpCode::LABEL(label, pos) => {
+                if self.jmp_table.is_duplicate(&label) {
+                    panic!("tyr [{:?}]: Duplicate label {:?} found!", pos, label);
+                }
+                // Insert pos+1 because we actually want to jump the line
+                // after the label, not the label itself
+                self.jmp_table.insert(label, pos+1);
+            },
             OpCode::NOP => {}
         }
     }
@@ -128,11 +163,14 @@ impl<'p> Vm<'p> {
         self.decrement_sp();
     }
 
-    fn jmp(&mut self) {
+    fn jmp(&mut self, loc: String) {
+        let new_p = self.jmp_table.get(&loc)
+            .unwrap_or_else(|| panic!("tyr: Attempted to jump to illegal location"));
 
+        self.sp = *new_p;
     }
 
-    fn jmpz(&mut self) {
+    fn jmpz(&mut self, loc: String) {
 
     }
 
