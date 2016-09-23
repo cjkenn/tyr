@@ -6,21 +6,23 @@ use std::fs::File;
 use std::error::Error;
 use std::io::prelude::*;
 use std::io::BufReader;
-use tyr::op::{OpCode, lex};
+use tyr::op::OpCode;
 use tyr::vm::Vm;
+use tyr::lexer::Lexer;
 
 fn main() {
     let filename = env::args().nth(1).unwrap_or_else(|| {
         panic!("tyr: Expected an input file to execute.");
     });
 
-    let prog = read_file(filename);
+    let lexer = Lexer::new();
+    let prog = read_file(filename, lexer);
     let mut vm = Vm::new(&prog);
 
     vm.run();
 }
 
-fn read_file(filename: String) -> Vec<OpCode> {
+fn read_file(filename: String, lexer: Lexer) -> Vec<OpCode> {
     let path = Path::new(&filename);
     let display = path.display();
 
@@ -36,25 +38,16 @@ fn read_file(filename: String) -> Vec<OpCode> {
         match line {
             Err(_) => panic!("tyr: cannot parse line {:?}", line),
             Ok(result) => {
-                let op = parse_line_into_op(result);
+                // TODO: Make this a try?
+                let op = match lexer.lex(&result) {
+                    Ok(op) => op,
+                    Err(error) => panic!("tyr: {:?}", error)
+                };
+
                 instructions.push(op);
             }
         }
     };
 
     instructions
-}
-
-fn parse_line_into_op(line: String) -> OpCode {
-    let words: Vec<&str> = line.split(' ').collect();
-    if words.is_empty() {
-        return OpCode::NOP;
-    }
-
-    // TODO: Better error handling other than panic?
-    // TODO: Split lex function into an actual lexer?
-    match lex(&words) {
-        Ok(result) => result,
-        Err(error) => panic!("tyr: {:?}", error)
-    }
 }
