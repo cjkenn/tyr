@@ -157,7 +157,7 @@ impl<'p> Vm<'p> {
 
     fn store(&mut self) {
         let store_val = self.maybe_i64_to_usize(self.stack[self.sp])
-            .unwrap_or_else(|| panic!("tyr: Attempted to store and illegal value."));
+            .unwrap_or_else(|| panic!("tyr: Attempted to store an illegal value."));
 
         self.stack[store_val] = self.stack[self.sp - 1];
         self.decrement_sp();
@@ -171,7 +171,11 @@ impl<'p> Vm<'p> {
     }
 
     fn jmpz(&mut self, loc: String) {
+        if self.stack[self.sp] == 0 {
+            self.jmp(loc);
+        }
 
+        self.decrement_sp();
     }
 
     // TODO: Probably shouldn't belong to this struct
@@ -186,5 +190,16 @@ impl<'p> Vm<'p> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
+    #[test]
+    fn test_jmp_table_is_duplicate() {
+        let mut jmp_table = JmpTable::new();
+        let key = "test".to_string();
+        jmp_table.insert("test".to_string(), 5);
+
+        let result = jmp_table.is_duplicate(&key);
+
+        assert_eq!(result, true);
+    }
 }

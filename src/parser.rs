@@ -134,12 +134,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "tyr: Invalid operation")]
     fn parse_line_illegal_op() {
         let prog = "TEST".to_string();
         let mut parser = Parser::new();
 
-        parser.parse_line(&prog).ok();
+        let result = parser.parse_line(&prog);
+        // Parse should fail when trying to parse the operation as a label.
+        assert_eq!(result.is_ok(), false);
     }
 
     #[test]
@@ -148,6 +149,7 @@ mod tests {
         let mut parser = Parser::new();
 
         let result = parser.parse_line(&prog);
-        assert_eq!(result.is_ok(), false)
+        // Parse should fail when trying to parse "h" as an i64.
+        assert_eq!(result.is_ok(), false);
     }
 }
