@@ -2,9 +2,14 @@ use op::OpCode;
 use std::process;
 use std::collections::HashMap;
 
+/// Maximum size for program stack.
 const STACK_SIZE: usize = 50;
 
+/// JmpTable is used to help determine program
+/// addresses to jump to when executing jump
+/// instructions.
 pub struct JmpTable {
+    /// Hash table mapping a label name to an address in a program.
     table: HashMap<String, usize>
 }
 
@@ -28,11 +33,25 @@ impl JmpTable {
     }
 }
 
+/// Hold relevant state info for the execution of a program.
+///
+/// The vm is stack based, with all operations taking their
+/// arguments off of the stack and returning results on top
+/// of the stack. The stack supports 64-bit integers, and is given
+/// a maximum size based on the constant STACK_SIZE, named above.
 pub struct Vm<'p> {
+    /// The program to execute, parsed from a file.
     prog: &'p Vec<OpCode>,
+    /// Program Counter. Points to the current instruction
+    /// in the program (ie. the instruction being executed).
     pc: usize,
+    /// The stack itself, where operations are executed.
     stack: [i64; STACK_SIZE],
+    /// Stack Pointer. Points to the top of the stack.
     sp: usize,
+    /// The Jump Table contains adresses of labels contained
+    /// in the program. These are retrieved in order to execute
+    /// jmp instructions.
     jmp_table: JmpTable
 }
 
@@ -47,6 +66,31 @@ impl<'p> Vm<'p> {
         }
     }
 
+    /// Runs the tyr vm. This method loops until the specified
+    /// program is completed, or a HALT instruction is found.
+    ///
+    /// The run process is simple: Fetch the current
+    /// instruction from the program, then execute it. The 'program'
+    /// described here is a vector of OpCodes. This vector is generated
+    /// from the parser, which converts a file of strings into the OpCode type.
+    /// This logic is similar to the standard vm operation of fetch, decode,
+    /// execute, except the operations are decoded in the parsing phase.
+    ///
+    /// This function will terminate on any errors encountered during the
+    /// execute phase, with a panic. This is sort of like a run time error in
+    /// a regular program.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use tyr::vm::Vm;
+    /// use tyr::op::OpCode;
+    ///
+    /// let prog = vec![OpCode::PRINT("Hello World".to_string())];
+    /// let vm = Vm::new(&prog);
+    ///
+    /// vm.run()
+    /// ```
     pub fn run(&mut self) {
         loop {
             if self.pc >= self.prog.len() {
@@ -60,6 +104,17 @@ impl<'p> Vm<'p> {
         }
     }
 
+    /// Given an instruction opcode, execute it by calling the corresponding
+    /// function implemented below. This function should only be called
+    /// by the run() function above.
+    ///
+    /// This function can panic for several reasons:
+    ///
+    /// 1. A jump is encountered to a label that doesn't exist.
+    /// 2. A label has been defined more than once in a program.
+    /// 3. The stack overflows/underflows.
+    /// 4. An illegal value is placed on the stack, and an operation fails
+    ///    because of that value.
     fn execute(&mut self, instr: &OpCode) {
         match instr.clone() {
             OpCode::LOADC(value) => self.loadc(value),
@@ -87,6 +142,8 @@ impl<'p> Vm<'p> {
         }
     }
 
+    /// Increase the stack pointer by one. Panics if the stack pointer
+    /// goes above the maximum stack size.
     fn increment_sp(&mut self) {
         if self.sp == STACK_SIZE {
             panic!("tyr: Stack overflow");
@@ -94,6 +151,8 @@ impl<'p> Vm<'p> {
         self.sp = self.sp + 1;
     }
 
+    /// Decrease the stack pointer by one. Panics if the stack pointer goes
+    /// below zero.
     fn decrement_sp(&mut self) {
         if self.sp == 0 {
             panic!("tyr: Stack underflow");
@@ -101,11 +160,41 @@ impl<'p> Vm<'p> {
         self.sp = self.sp - 1;
     }
 
+    /// Loads a constant on to the stack.
+    ///
+    /// By calling:
+    ///
+    /// ```
+    /// loadc(5)
+    /// ```
+    ///
+    /// The stack will look like:
+    ///
+    /// | 5 | <-- sp
+    /// | 0 | <-- bottom of stack
+    /// +---+
     fn loadc(&mut self, value: i64) {
         self.increment_sp();
         self.stack[self.sp] = value;
     }
 
+    /// Adds the top two numbers on the stack, and returns the
+    /// result on the top of the stack.
+    ///
+    /// Consider the following sequence of operations:
+    ///
+    /// ```
+    /// loadc(5);
+    /// loadc(5);
+    /// add();
+    /// ```
+    ///
+    /// After execution, the stack will look like the following:
+    ///
+    /// | 10 | <-- sp
+    /// |  5 | <-- the first argument is still present at sp-1
+    /// |  0 | <-- bottom of stack
+    /// +----+
     fn add(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] + self.stack[self.sp-1];
         self.decrement_sp();
