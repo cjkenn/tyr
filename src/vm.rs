@@ -87,7 +87,7 @@ impl<'p> Vm<'p> {
     /// use tyr::op::OpCode;
     ///
     /// let prog = vec![OpCode::PRINT("Hello World".to_string())];
-    /// let vm = Vm::new(&prog);
+    /// let mut vm = Vm::new(&prog);
     ///
     /// vm.run()
     /// ```
@@ -136,6 +136,9 @@ impl<'p> Vm<'p> {
                 if self.jmp_table.is_duplicate(&label) {
                     panic!("tyr [{:?}]: Duplicate label {:?} found!", pos, label);
                 }
+                // TODO: Add entries in to jmp table during parsing,
+                // so that we can jump to labels defined after the
+                // currently executing instruction
                 self.jmp_table.insert(label, pos);
             },
             OpCode::NOP => {}
@@ -164,9 +167,7 @@ impl<'p> Vm<'p> {
     ///
     /// By calling:
     ///
-    /// ```
-    /// loadc(5)
-    /// ```
+    /// LOADC 5
     ///
     /// The stack will look like:
     ///
@@ -183,11 +184,9 @@ impl<'p> Vm<'p> {
     ///
     /// Consider the following sequence of operations:
     ///
-    /// ```
-    /// loadc(5);
-    /// loadc(5);
-    /// add();
-    /// ```
+    /// LOADC 5
+    /// LOADC 5
+    /// ADD
     ///
     /// After execution, the stack will look like the following:
     ///
@@ -200,41 +199,92 @@ impl<'p> Vm<'p> {
         self.decrement_sp();
     }
 
+    /// Multiplies the top two numbers on the stack, and returns the
+    /// result on the top of the stack.
     fn mul(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] * self.stack[self.sp-1];
         self.decrement_sp();
     }
 
+    /// Subtracts the top two numbers on the stack, and returns the
+    /// result on the top of the stack.
     fn sub(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] - self.stack[self.sp-1];
         self.decrement_sp();
     }
 
+    /// Divides the top two numbers on the stack, and returns the
+    /// result on the top of the stack.
     fn div(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] / self.stack[self.sp-1];
         self.decrement_sp();
     }
 
+    /// Mods the top two numbers on the stack, and returns the
+    /// result on the top of the stack.
     fn modq(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] % self.stack[self.sp-1];
         self.decrement_sp();
     }
 
+    /// Performs a bitwise AND on the top two numbers on the stack,
+    /// and returns the result on the top of the stack.
     fn and(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] & self.stack[self.sp-1];
         self.decrement_sp();
     }
 
+    /// Performs a bitwise OR on the top two numbers on the stack,
+    /// and returns the result on the top of the stack.
     fn or(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] | self.stack[self.sp-1];
         self.decrement_sp();
     }
 
+    /// Negates the top value on the stack, while keeping sp the same.
+    ///
+    /// Consider the following sequense of operations:
+    ///
+    /// LOADC 5
+    /// NEG
+    ///
+    /// After exection, the stack will look like the following:
+    ///
+    /// | -5 | <-- sp
+    /// |  0 | <-- bottom of stack
+    /// +----+
     fn neg(&mut self) {
         self.stack[self.sp] = -self.stack[self.sp];
     }
 
-    /// Expect an address on top of stack
+    /// Loads an address in stack memory to the top of the stack.
+    /// Requires a single argument on top of the stack, corresponding to
+    /// the memory address to load. Then, the program contents located at
+    /// that address are placed on the top of the stack.
+    ///
+    /// Consider the following sequence of operations:
+    ///
+    /// LOADC 5
+    /// LOADC 6
+    /// LOADC 1 // this is the stack location we want to load.
+    ///
+    /// The stack now looks like this:
+    ///
+    /// | 1 | <-- address to load, and sp
+    /// | 6 |
+    /// | 5 | <-- bottom of stack
+    /// +---+
+    ///
+    /// Now, we can call the load instruction:
+    ///
+    /// LOAD
+    ///
+    /// And the stack will look like the following:
+    ///
+    /// | 5 | <-- loaded value 5 from address 1
+    /// | 6 |
+    /// | 5 | <-- value at address 1 still remains the same
+    /// +---+
     fn load(&mut self) {
         let load_loc = self.maybe_i64_to_usize(self.stack[self.sp])
             .unwrap_or_else(|| panic!("tyr: Attempted to load an illegal value."));
@@ -242,7 +292,25 @@ impl<'p> Vm<'p> {
         self.stack[self.sp] = self.stack[load_loc];
     }
 
-    /// Expect a value and an address on top of stack
+    /// Stores a value in a specified address on the stack. This function
+    /// expects two arguments on the stack: the top value should
+    /// be the stack address of where the value will be stored, and the second
+    /// value (sp-1) should be the actual number to store. After the number
+    /// is stored, we decrement sp, removing the address argument from the stack.
+    ///
+    /// Consider the following sequence of operations:
+    ///
+    /// LOADC 5
+    /// LOADC 6 // value to store
+    /// LOADC 1 // location on stack to put it in
+    ///
+    /// Now, when we call store, we can put our value in the right spot on the stack:
+    ///
+    /// STORE
+    ///
+    /// | 6 | <- sp
+    /// | 6 | <- the previous value of 5 has been overwritten by the store call
+    /// +---+
     fn store(&mut self) {
         let store_loc = self.maybe_i64_to_usize(self.stack[self.sp])
             .unwrap_or_else(|| panic!("tyr: Attempted to store an illegal value."));
@@ -251,13 +319,20 @@ impl<'p> Vm<'p> {
         self.decrement_sp();
     }
 
+    /// Jumps to a location on the stack, by moving the program counter to the
+    /// correct address. The argument given must be a string that corresponds to
+    /// a label provided in the program.
+    /// Jmp will panic if the label provided does not exist.
     fn jmp(&mut self, loc: String) {
-        let new_p = self.jmp_table.get(&loc)
+        let new_pc = self.jmp_table.get(&loc)
             .unwrap_or_else(|| panic!("tyr: Attempted to jump to illegal location"));
 
-        self.sp = *new_p;
+        self.pc = *new_pc;
     }
 
+    /// Performs a jmp instruction, if the argument on the top of the stack is
+    /// a zero. If the value at sp is not zero, program execution continues and the
+    /// top of the stack is popped.
     fn jmpz(&mut self, loc: String) {
         if self.stack[self.sp] == 0 {
             self.jmp(loc);
@@ -430,18 +505,20 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_run_jmp() {
         let prog = vec![
             OpCode::LABEL("label1".to_string(), 1),
             OpCode::LOADC(5),
             OpCode::LOADC(6),
+            OpCode::JMP("halt".to_string()),
             OpCode::LOADC(7),
-            OpCode::JMP("label1".to_string())
+            OpCode::LABEL("halt".to_string(), 5)
         ];
         let mut vm = Vm::new(&prog);
         vm.run();
 
-        assert_eq!(vm.peek(), 5);
+        assert_eq!(vm.peek(), 6);
     }
 
     #[test]
@@ -458,6 +535,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_run_jmpz() {
         let prog = vec![
             OpCode::LABEL("label1".to_string(), 1),
