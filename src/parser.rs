@@ -1,15 +1,18 @@
 use op::{OpCode, OpError};
+use sym_tab::SymbolTable;
 
-pub struct Parser {
-    // TODO: Hold some error handling info here
+pub struct Parser<'s> {
+    // TODO: Hold some more error handling info here
     // line number, char number, etc.
-    line: usize
+    line: usize,
+    sym_tab: &'s mut SymbolTable
 }
 
-impl Parser {
-    pub fn new() -> Parser {
+impl<'s> Parser<'s> {
+    pub fn new(table: &'s mut SymbolTable) -> Parser {
         Parser {
-            line: 1
+            line: 1,
+            sym_tab: table
         }
     }
 
@@ -46,7 +49,7 @@ impl Parser {
         result
     }
 
-    fn parse_label(&self, op_vec: &Vec<&str>) -> Result<OpCode, OpError> {
+    fn parse_label(&mut self, op_vec: &Vec<&str>) -> Result<OpCode, OpError> {
         let result: Result<OpCode, OpError>;
         let label = op_vec[0];
         let last_char = label.chars().nth(label.len() - 1).unwrap();
@@ -54,10 +57,20 @@ impl Parser {
         if last_char != ':' {
             result = Err(OpError::Label(
                 "tyr: Illegal label name - labels must end with a colon.".to_string()
-            ))
-        } else {
-            result = Ok(OpCode::LABEL(label.to_string(), self.line));
+            ));
+
+            return result;
         }
+
+        if self.sym_tab.is_duplicate(&label.to_string()) {
+            let error = format!("tyr [{:?}]: Duplicate label {:?} found!", self.line, label);
+            result = Err(OpError::Label(error));
+
+            return result;
+        }
+
+        self.sym_tab.insert(label.to_string(), self.line);
+        result = Ok(OpCode::LABEL(label.to_string(), self.line));
 
         result
     }
@@ -77,12 +90,14 @@ impl Parser {
 mod tests {
     use super::*;
     use op::OpCode;
+    use sym_tab::SymbolTable;
 
     #[test]
     fn parse_line_print() {
         let prog = "PRINT test".to_string();
         let expected = OpCode::PRINT("test".to_string());
-        let mut parser = Parser::new();
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
 
         let result = parser.parse_line(&prog).ok().unwrap();
 
@@ -93,7 +108,8 @@ mod tests {
     fn parse_line_halt() {
         let prog = "HALT".to_string();
         let expected = OpCode::HALT;
-        let mut parser = Parser::new();
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
 
         let result = parser.parse_line(&prog).ok().unwrap();
 
@@ -104,7 +120,8 @@ mod tests {
     fn parse_line_nop() {
         let prog = "NOP".to_string();
         let expected = OpCode::NOP;
-        let mut parser = Parser::new();
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
 
         let result = parser.parse_line(&prog).ok().unwrap();
 
@@ -115,7 +132,8 @@ mod tests {
     fn parse_line_add() {
         let prog = "ADD".to_string();
         let expected = OpCode::ADD;
-        let mut parser = Parser::new();
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
 
         let result = parser.parse_line(&prog).ok().unwrap();
 
@@ -126,7 +144,8 @@ mod tests {
     fn parse_line_loadc() {
         let prog = "LOADC 5".to_string();
         let expected = OpCode::LOADC(5);
-        let mut parser = Parser::new();
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
 
         let result = parser.parse_line(&prog).ok().unwrap();
 
@@ -136,7 +155,8 @@ mod tests {
     #[test]
     fn parse_line_illegal_op() {
         let prog = "TEST".to_string();
-        let mut parser = Parser::new();
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
 
         let result = parser.parse_line(&prog);
         // Parse should fail when trying to parse the operation as a label.
@@ -146,7 +166,8 @@ mod tests {
     #[test]
     fn parse_line_illegal_arg() {
         let prog = "LOADC h".to_string();
-        let mut parser = Parser::new();
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
 
         let result = parser.parse_line(&prog);
         // Parse should fail when trying to parse "h" as an i64.

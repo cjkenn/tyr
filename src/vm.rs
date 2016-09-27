@@ -1,39 +1,11 @@
 use op::OpCode;
+use sym_tab::SymbolTable;
 use std::process;
-use std::collections::HashMap;
 
 /// Maximum size for program stack.
 const STACK_SIZE: usize = 50;
 
-/// JmpTable is used to help determine program
-/// addresses to jump to when executing jump
-/// instructions.
-pub struct JmpTable {
-    /// Hash table mapping a label name to an address in a program.
-    table: HashMap<String, usize>
-}
-
-impl JmpTable {
-    pub fn new() -> JmpTable {
-        JmpTable {
-            table: HashMap::new()
-        }
-    }
-
-    pub fn insert(&mut self, key: String, val: usize) {
-        self.table.insert(key, val);
-    }
-
-    pub fn get(&self, key: &String) -> Option<&usize> {
-        self.table.get(key)
-    }
-
-    pub fn is_duplicate(&self, key: &String) -> bool {
-        self.table.get(key).is_some()
-    }
-}
-
-/// Hold relevant state info for the execution of a program.
+/// Holds relevant state info for the execution of a program.
 ///
 /// The vm is stack based, with all operations taking their
 /// arguments off of the stack and returning results on top
@@ -49,20 +21,20 @@ pub struct Vm<'p> {
     stack: [i64; STACK_SIZE],
     /// Stack Pointer. Points to the top of the stack.
     sp: usize,
-    /// The Jump Table contains adresses of labels contained
+    /// The Symbol Table contains adresses of labels contained
     /// in the program. These are retrieved in order to execute
     /// jmp instructions.
-    jmp_table: JmpTable
+    sym_tab: &'p SymbolTable
 }
 
 impl<'p> Vm<'p> {
-    pub fn new(program: &Vec<OpCode>) -> Vm {
+    pub fn new(program: &'p Vec<OpCode>, table: &'p SymbolTable) -> Vm<'p> {
         Vm {
             prog: program,
             pc: 0,
             stack: [0; STACK_SIZE],
             sp: 0,
-            jmp_table: JmpTable::new()
+            sym_tab: table
         }
     }
 
@@ -85,9 +57,11 @@ impl<'p> Vm<'p> {
     /// ```
     /// use tyr::vm::Vm;
     /// use tyr::op::OpCode;
+    /// use tyr::sym_tab::SymbolTable;
     ///
     /// let prog = vec![OpCode::PRINT("Hello World".to_string())];
-    /// let mut vm = Vm::new(&prog);
+    /// let sym_tab = SymbolTable::new();
+    /// let mut vm = Vm::new(&prog, &sym_tab);
     ///
     /// vm.run()
     /// ```
@@ -132,15 +106,8 @@ impl<'p> Vm<'p> {
             OpCode::JMP(label) => self.jmp(label),
             OpCode::JMPZ(label) => self.jmpz(label),
             OpCode::PRINT(message) => println!("{}", message),
-            OpCode::LABEL(label, pos) => {
-                if self.jmp_table.is_duplicate(&label) {
-                    panic!("tyr [{:?}]: Duplicate label {:?} found!", pos, label);
-                }
-                // TODO: Add entries in to jmp table during parsing,
-                // so that we can jump to labels defined after the
-                // currently executing instruction
-                self.jmp_table.insert(label, pos);
-            },
+            // TODO: Remove all LABEL opcodes from program vector?
+            OpCode::LABEL(_, _) => {},
             OpCode::NOP => {}
         }
     }
@@ -324,7 +291,7 @@ impl<'p> Vm<'p> {
     /// a label provided in the program.
     /// Jmp will panic if the label provided does not exist.
     fn jmp(&mut self, loc: String) {
-        let new_pc = self.jmp_table.get(&loc)
+        let new_pc = self.sym_tab.get(&loc)
             .unwrap_or_else(|| panic!("tyr: Attempted to jump to illegal location"));
 
         self.pc = *new_pc;
@@ -336,9 +303,9 @@ impl<'p> Vm<'p> {
     fn jmpz(&mut self, loc: String) {
         if self.stack[self.sp] == 0 {
             self.jmp(loc);
-        } else {
-            self.decrement_sp();
         }
+
+        self.decrement_sp();
     }
 
     // TODO: Probably shouldn't belong to this struct
@@ -359,22 +326,13 @@ impl<'p> Vm<'p> {
 mod tests {
     use super::*;
     use op::OpCode;
-
-    #[test]
-    fn test_jmp_table_is_duplicate() {
-        let mut jmp_table = JmpTable::new();
-        let key = "test".to_string();
-        jmp_table.insert("test".to_string(), 5);
-
-        let result = jmp_table.is_duplicate(&key);
-
-        assert_eq!(result, true);
-    }
+    use sym_tab::SymbolTable;
 
     #[test]
     fn test_run_loadc() {
         let prog = vec![OpCode::LOADC(5)];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 5);
@@ -383,7 +341,8 @@ mod tests {
     #[test]
     fn test_run_add() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(5), OpCode::ADD];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 10);
@@ -392,7 +351,8 @@ mod tests {
     #[test]
     fn test_run_sub() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(4), OpCode::SUB];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), -1);
@@ -401,7 +361,8 @@ mod tests {
     #[test]
     fn test_run_mul() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(5), OpCode::MUL];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 25);
@@ -410,7 +371,8 @@ mod tests {
     #[test]
     fn test_run_div() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(5), OpCode::DIV];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 1);
@@ -419,7 +381,8 @@ mod tests {
     #[test]
     fn test_run_div_with_remainder() {
         let prog = vec![OpCode::LOADC(3), OpCode::LOADC(10), OpCode::DIV];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 3);
@@ -428,7 +391,8 @@ mod tests {
     #[test]
     fn test_run_modq() {
         let prog = vec![OpCode::LOADC(2), OpCode::LOADC(4), OpCode::MOD];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 0);
@@ -437,7 +401,8 @@ mod tests {
     #[test]
     fn test_run_and() {
         let prog = vec![OpCode::LOADC(2), OpCode::LOADC(2), OpCode::AND];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 2);
@@ -446,7 +411,8 @@ mod tests {
     #[test]
     fn test_run_or() {
         let prog = vec![OpCode::LOADC(3), OpCode::LOADC(2), OpCode::OR];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 3);
@@ -455,7 +421,8 @@ mod tests {
     #[test]
     fn test_run_neg() {
         let prog = vec![OpCode::LOADC(5), OpCode::NEG];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), -5);
@@ -464,7 +431,8 @@ mod tests {
     #[test]
     fn test_run_load() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(4), OpCode::LOADC(1), OpCode::LOAD];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 5);
@@ -473,7 +441,8 @@ mod tests {
     #[test]
     fn test_run_load_no_contents() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(5), OpCode::LOADC(4), OpCode::LOAD];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
         // Load will return 0 if there are no contents in the stack address attempted to load.
         assert_eq!(vm.peek(), 0);
@@ -483,14 +452,16 @@ mod tests {
     #[should_panic(expected = "tyr: Attempted to load an illegal value.")]
     fn test_run_load_illegal_value() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(5), OpCode::LOADC(-2), OpCode::LOAD];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
     }
 
     #[test]
     fn test_run_store() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(4), OpCode::LOADC(1), OpCode::STORE];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 4);
@@ -500,12 +471,12 @@ mod tests {
     #[should_panic(expected = "tyr: Attempted to store an illegal value.")]
     fn test_run_store_illegal_value() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(5), OpCode::LOADC(-1), OpCode::STORE];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
     }
 
     #[test]
-    #[ignore]
     fn test_run_jmp() {
         let prog = vec![
             OpCode::LABEL("label1".to_string(), 1),
@@ -515,7 +486,11 @@ mod tests {
             OpCode::LOADC(7),
             OpCode::LABEL("halt".to_string(), 5)
         ];
-        let mut vm = Vm::new(&prog);
+        let mut sym_tab = SymbolTable::new();
+        sym_tab.insert("label1".to_string(), 1);
+        sym_tab.insert("halt".to_string(), 5);
+
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 6);
@@ -530,24 +505,30 @@ mod tests {
             OpCode::LOADC(6),
             OpCode::JMP("label2".to_string())
         ];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
     }
 
     #[test]
-    #[ignore]
     fn test_run_jmpz() {
         let prog = vec![
             OpCode::LABEL("label1".to_string(), 1),
             OpCode::LOADC(5),
             OpCode::LOADC(6),
             OpCode::LOADC(0),
-            OpCode::JMPZ("label1".to_string())
+            OpCode::JMPZ("halt".to_string()),
+            OpCode::LABEL("halt".to_string(), 5),
+            OpCode::LOADC(7)
         ];
-        let mut vm = Vm::new(&prog);
+        let mut sym_tab = SymbolTable::new();
+        sym_tab.insert("label1".to_string(), 1);
+        sym_tab.insert("halt".to_string(), 5);
+
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
-        assert_eq!(vm.peek(), 5);
+        assert_eq!(vm.peek(), 7);
     }
 
     #[test]
@@ -559,7 +540,8 @@ mod tests {
             OpCode::LOADC(1),
             OpCode::JMPZ("label1".to_string())
         ];
-        let mut vm = Vm::new(&prog);
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
 
         assert_eq!(vm.peek(), 6);
