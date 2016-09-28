@@ -106,7 +106,6 @@ impl<'p> Vm<'p> {
             OpCode::JMP(label) => self.jmp(label),
             OpCode::JMPZ(label) => self.jmpz(label),
             OpCode::PRINT(message) => println!("{}", message),
-            // TODO: Remove all LABEL opcodes from program vector?
             OpCode::LABEL(_, _) => {},
             OpCode::NOP => {}
         }

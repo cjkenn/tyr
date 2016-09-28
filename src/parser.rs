@@ -69,8 +69,9 @@ impl<'s> Parser<'s> {
             return result;
         }
 
-        self.sym_tab.insert(label.to_string(), self.line);
-        result = Ok(OpCode::LABEL(label.to_string(), self.line));
+        let jmp_label = label.split_at(label.len()-1).0;
+        self.sym_tab.insert(jmp_label.to_string(), self.line);
+        result = Ok(OpCode::LABEL(jmp_label.to_string(), self.line));
 
         result
     }
