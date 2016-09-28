@@ -90,7 +90,7 @@ impl<'s> Parser<'s> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use op::OpCode;
+    use op::{OpCode, OpError};
     use sym_tab::SymbolTable;
 
     #[test]
@@ -149,6 +149,32 @@ mod tests {
         let mut parser = Parser::new(&mut sym_tab);
 
         let result = parser.parse_line(&prog).ok().unwrap();
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn parse_line_label() {
+        let prog = "testlabel:".to_string();
+        let expected = OpCode::LABEL("testlabel".to_string(), 1);
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
+
+        let result = parser.parse_line(&prog).ok().unwrap();
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn parse_line_label_illegal_value() {
+        let prog = "testlabel".to_string();
+        let expected = OpError::Label(
+             "tyr: Illegal label name - labels must end with a colon.".to_string()
+        );
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
+
+        let result = parser.parse_line(&prog).err().unwrap();
 
         assert_eq!(expected, result);
     }

@@ -21,7 +21,7 @@ pub enum OpCode {
     NOP
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OpError {
     Parse(ParseIntError),
     Label(String)
