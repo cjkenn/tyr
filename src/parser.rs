@@ -1,12 +1,21 @@
 use op::{OpCode, OpError};
 use sym_tab::SymbolTable;
 
+/// The Parser is responsible for converting strings in a file to
+/// OpCodes that can be executed by the vm. The struct also holds
+/// some info for error reporting, as well as a symbol table to
+/// insert label names.
 pub struct Parser<'s> {
     // TODO: Hold some more error handling info here
     // line number, char number, etc.
+    /// Current line being parsed.
     line: usize,
+    /// Symbol table for execution of this program.
     sym_tab: &'s mut SymbolTable
 }
+
+pub type ParseResult = Result<OpCode, OpError>;
+pub type ArgResult = Result<i64, OpError>;
 
 impl<'s> Parser<'s> {
     pub fn new(table: &'s mut SymbolTable) -> Parser {
@@ -16,14 +25,38 @@ impl<'s> Parser<'s> {
         }
     }
 
-    pub fn parse_line(&mut self, line: &String) -> Result<OpCode, OpError> {
+    /// parse_line takes in a line as a String, and returns a result
+    /// containing an OpCode or OpError, as defined in op.rs. In the
+    /// match expression, we assume any non-operation string to be a
+    /// label. Label handling is done in the parse_label function.
+    ///
+    /// When we're given an empty string, we assume a NOP. This
+    /// function will not panic; that can be decided by the caller
+    /// when they handle the Result.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use tyr::op::OpCode;
+    /// use tyr::sym_tab::SymbolTable;
+    /// use tyr::parser::Parser;
+    ///
+    /// let prog = "PRINT Hello!".to_string();
+    /// let mut sym_tab = SymbolTable::new();
+    /// let mut parser = Parser::new(&mut sym_tab);
+    ///
+    /// let result = parser.parse_line(&prog).ok().unwrap();
+    ///
+    /// assert_eq!(OpCode::PRINT("Hello!".to_string()), result);
+    /// ```
+    pub fn parse_line(&mut self, line: &String) -> ParseResult {
         let op_vec: Vec<&str> = line.split(' ').collect();
         if op_vec.is_empty() {
             return Ok(OpCode::NOP);
         }
 
         let result = match op_vec[0] {
-            "PRINT" => Ok(OpCode::PRINT(op_vec[1].to_owned())),
+            "PRINT" => Ok(OpCode::PRINT(op_vec[1].to_string())),
             "HALT" => Ok(OpCode::HALT),
             "NOP" => Ok(OpCode::NOP),
             "ADD" => Ok(OpCode::ADD),
@@ -36,8 +69,8 @@ impl<'s> Parser<'s> {
             "NEG" => Ok(OpCode::NEG),
             "LOAD" => Ok(OpCode::LOAD),
             "STORE" => Ok(OpCode::STORE),
-            "JMP" => Ok(OpCode::JMP(op_vec[1].to_owned())),
-            "JMPZ" => Ok(OpCode::JMPZ(op_vec[1].to_owned())),
+            "JMP" => Ok(OpCode::JMP(op_vec[1].to_string())),
+            "JMPZ" => Ok(OpCode::JMPZ(op_vec[1].to_string())),
             "LOADC" => {
                 let arg = try!(self.extract_arg(&op_vec));
                 Ok(OpCode::LOADC(arg))
@@ -49,7 +82,15 @@ impl<'s> Parser<'s> {
         result
     }
 
-    fn parse_label(&mut self, op_vec: &Vec<&str>) -> Result<OpCode, OpError> {
+    /// Parses a label into the correct OpCode, given a label as a string.
+    /// This returns a Result, and will never panic. Before returning,
+    /// this function will insert the label into the symbol table for
+    /// future use by the vm.
+    ///
+    /// An Error will be returned if the provided label does not end
+    /// with a colon, or if the label has already been declared
+    /// (that is, the label already exists in the symbol table).
+    fn parse_label(&mut self, op_vec: &Vec<&str>) -> ParseResult {
         let result: Result<OpCode, OpError>;
         let label = op_vec[0];
         let last_char = label.chars().nth(label.len() - 1).unwrap();
@@ -76,8 +117,16 @@ impl<'s> Parser<'s> {
         result
     }
 
-    fn extract_arg(&self, op_vec: &Vec<&str>) -> Result<i64, OpError> {
+    /// Given a line of a program, split into a vector of strings,
+    /// extract the argument provided in the operation into an i64 value.
+    /// For example, if we pass in a vector like ["LOADC", "1"],
+    /// this function would return Ok(1).
+    ///
+    /// However, if we pass in something like ["LOADC", "hello"],
+    /// we eould return with an OpError::Parse type.
+    fn extract_arg(&self, op_vec: &Vec<&str>) -> ArgResult {
         if op_vec.len() < 2 {
+            // TODO: Why panic here instead of returning an OpError?
             panic!("tyr: Missing arguments for load operation {:?}.", op_vec[0]);
         }
 
