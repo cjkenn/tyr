@@ -69,6 +69,14 @@ impl<'s> Parser<'s> {
             "NEG" => Ok(OpCode::NEG),
             "LOAD" => Ok(OpCode::LOAD),
             "STORE" => Ok(OpCode::STORE),
+            "LOADV" => {
+                let arg = try!(self.extract_arg(&op_vec));
+                Ok(OpCode::LOADV(arg))
+            },
+            "STOREV" => {
+                let arg = try!(self.extract_arg(&op_vec));
+                Ok(OpCode::STOREV(arg))
+            },
             "JMP" => Ok(OpCode::JMP(op_vec[1].to_string())),
             "JMPZ" => Ok(OpCode::JMPZ(op_vec[1].to_string())),
             "LOADC" => {
@@ -248,5 +256,30 @@ mod tests {
         let result = parser.parse_line(&prog);
         // Parse should fail when trying to parse "h" as an i64.
         assert_eq!(result.is_ok(), false);
+    }
+
+    #[test]
+    fn parse_line_loadv() {
+        let prog = "LOADV 5".to_string();
+        let expected = OpCode::LOADV(5);
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
+
+        let result = parser.parse_line(&prog).ok().unwrap();
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn parse_line_storev() {
+        let prog = "STOREV 5".to_string();
+        let expected = OpCode::STOREV(5);
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
+
+        let result = parser.parse_line(&prog).ok().unwrap();
+
+        assert_eq!(expected, result);
+
     }
 }

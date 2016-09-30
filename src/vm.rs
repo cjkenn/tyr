@@ -91,7 +91,7 @@ impl<'p> Vm<'p> {
     ///    because of that value.
     fn execute(&mut self, instr: &OpCode) {
         match instr.clone() {
-            OpCode::LOADC(value) => self.loadc(value),
+            OpCode::LOADC(val) => self.loadc(val),
             OpCode::ADD => self.add(),
             OpCode::SUB => self.sub(),
             OpCode::MUL => self.mul(),
@@ -106,6 +106,8 @@ impl<'p> Vm<'p> {
             OpCode::JMP(label) => self.jmp(label),
             OpCode::JMPZ(label) => self.jmpz(label),
             OpCode::PRINT(message) => println!("{}", message),
+            OpCode::LOADV(val) => self.loadv(val),
+            OpCode::STOREV(val) => self.storev(val),
             OpCode::LABEL(_, _) => {},
             OpCode::NOP => {}
         }
@@ -258,6 +260,18 @@ impl<'p> Vm<'p> {
         self.stack[self.sp] = self.stack[load_loc];
     }
 
+    /// Convenience method provided so that we can generate
+    /// LOADV i64
+    ///
+    /// instead of
+    ///
+    /// LOADC i64
+    /// LOAD
+    fn loadv(&mut self, val: i64) {
+        self.loadc(val);
+        self.load();
+    }
+
     /// Stores a value in a specified address on the stack. This function
     /// expects two arguments on the stack: the top value should
     /// be the stack address of where the value will be stored, and the second
@@ -283,6 +297,18 @@ impl<'p> Vm<'p> {
 
         self.stack[store_loc] = self.stack[self.sp - 1];
         self.decrement_sp();
+    }
+
+    /// Convenience method provided so that we can generate
+    /// STOREV i64
+    ///
+    /// instead of
+    ///
+    /// LOADC i64
+    /// STORE
+    fn storev(&mut self, val: i64) {
+        self.loadc(val);
+        self.store();
     }
 
     /// Jumps to a location on the stack, by moving the program counter to the
@@ -457,6 +483,16 @@ mod tests {
     }
 
     #[test]
+    fn test_run_loadv() {
+        let prog = vec![OpCode::LOADC(3), OpCode::LOADV(1)];
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
+        vm.run();
+
+        assert_eq!(vm.peek(), 3);
+    }
+
+    #[test]
     fn test_run_store() {
         let prog = vec![OpCode::LOADC(5), OpCode::LOADC(4), OpCode::LOADC(1), OpCode::STORE];
         let sym_tab = SymbolTable::new();
@@ -473,6 +509,16 @@ mod tests {
         let sym_tab = SymbolTable::new();
         let mut vm = Vm::new(&prog, &sym_tab);
         vm.run();
+    }
+
+    #[test]
+    fn test_run_storev() {
+        let prog = vec![OpCode::LOADC(5),  OpCode::STOREV(1)];
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
+        vm.run();
+
+        assert_eq!(vm.peek(), 5);
     }
 
     #[test]

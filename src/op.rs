@@ -4,9 +4,11 @@ use std::num::ParseIntError;
 pub enum OpCode {
     PRINT(String),
     LOADC(i64),
+    LOADV(i64),
     LABEL(String, usize),
     LOAD,
     STORE,
+    STOREV(i64),
     ADD,
     SUB,
     MUL,
