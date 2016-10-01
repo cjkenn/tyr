@@ -86,7 +86,8 @@ impl<'s> Parser<'s> {
             "JMPI" => {
                 let arg = try!(self.extract_arg(&op_vec));
                 Ok(OpCode::JMPI(arg))
-            }
+            },
+            "DUP" => Ok(OpCode::DUP),
             _ => self.parse_label(&op_vec)
         };
 

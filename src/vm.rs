@@ -109,6 +109,7 @@ impl<'p> Vm<'p> {
             OpCode::PRINT(message) => println!("{}", message),
             OpCode::LOADV(val) => self.loadv(val),
             OpCode::STOREV(val) => self.storev(val),
+            OpCode::DUP => self.dup(),
             OpCode::LABEL(_, _) => {},
             OpCode::NOP => {}
         }
@@ -343,6 +344,12 @@ impl<'p> Vm<'p> {
         self.pc = jmp_addr;
 
         self.decrement_sp();
+    }
+
+    /// Duplicate the top value on the stack.
+    fn dup(&mut self) {
+        self.stack[self.sp + 1] = self.stack[self.sp];
+        self.increment_sp();
     }
 
     // TODO: Probably shouldn't belong to this struct
