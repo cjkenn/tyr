@@ -83,6 +83,10 @@ impl<'s> Parser<'s> {
                 let arg = try!(self.extract_arg(&op_vec));
                 Ok(OpCode::LOADC(arg))
             },
+            "JMPI" => {
+                let arg = try!(self.extract_arg(&op_vec));
+                Ok(OpCode::JMPI(arg))
+            }
             _ => self.parse_label(&op_vec)
         };
 

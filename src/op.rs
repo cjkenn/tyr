@@ -20,6 +20,7 @@ pub enum OpCode {
     HALT,
     JMP(String),
     JMPZ(String),
+    JMPI(i64),
     NOP
 }
 

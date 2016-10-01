@@ -105,6 +105,7 @@ impl<'p> Vm<'p> {
             OpCode::STORE => self.store(),
             OpCode::JMP(label) => self.jmp(label),
             OpCode::JMPZ(label) => self.jmpz(label),
+            OpCode::JMPI(offset) => self.jmpi(offset),
             OpCode::PRINT(message) => println!("{}", message),
             OpCode::LOADV(val) => self.loadv(val),
             OpCode::STOREV(val) => self.storev(val),
@@ -329,6 +330,17 @@ impl<'p> Vm<'p> {
         if self.stack[self.sp] == 0 {
             self.jmp(loc);
         }
+
+        self.decrement_sp();
+    }
+
+    /// Performs and indexed jump. This function expects a single argument on top
+    /// of the stack, an address to jump to. Then, we add the offset provided
+    /// to that address and set the program counter.
+    fn jmpi(&mut self, offset: i64) {
+        let jmp_addr = self.maybe_i64_to_usize(self.stack[self.sp] + offset)
+            .unwrap_or_else(|| panic!("tyr: Attempted to calculate an illegal jump offset"));
+        self.pc = jmp_addr;
 
         self.decrement_sp();
     }
