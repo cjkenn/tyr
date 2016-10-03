@@ -610,4 +610,14 @@ mod tests {
 
         assert_eq!(vm.peek(), 6);
     }
+
+    #[test]
+    fn test_run_dup() {
+        let prog = vec![OpCode::LOADC(5), OpCode::DUP];
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
+        vm.run();
+
+        assert_eq!(vm.peek(), 5);
+    }
 }
