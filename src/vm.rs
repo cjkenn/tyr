@@ -612,6 +612,23 @@ mod tests {
     }
 
     #[test]
+    fn test_run_jmpi() {
+        let prog = vec![
+            OpCode::LOADC(5),
+            OpCode::LOADC(6),
+            OpCode::LOADC(1),
+            OpCode::JMPI(3),
+            OpCode::LOADC(4),
+            OpCode::HALT
+        ];
+        let sym_tab = SymbolTable::new();
+        let mut vm = Vm::new(&prog, &sym_tab);
+        vm.run();
+
+        assert_eq!(vm.peek(), 4);
+    }
+
+    #[test]
     fn test_run_dup() {
         let prog = vec![OpCode::LOADC(5), OpCode::DUP];
         let sym_tab = SymbolTable::new();
