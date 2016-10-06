@@ -288,6 +288,18 @@ mod tests {
     }
 
     #[test]
+    fn parse_line_jmpi() {
+        let prog = "JMPI 5".to_string();
+        let expected = OpCode::JMPI(5);
+        let mut sym_tab = SymbolTable::new();
+        let mut parser = Parser::new(&mut sym_tab);
+
+        let result = parser.parse_line(&prog).ok().unwrap();
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
     fn parse_line_dup() {
         let prog = "DUP".to_string();
         let expected = OpCode::DUP;

@@ -1,6 +1,7 @@
 use op::OpCode;
 use sym_tab::SymbolTable;
 use std::process;
+use util;
 
 /// Maximum size for program stack.
 const STACK_SIZE: usize = 50;
@@ -117,7 +118,7 @@ impl<'p> Vm<'p> {
 
     /// Increase the stack pointer by one. Panics if the stack pointer
     /// goes above the maximum stack size.
-    fn increment_sp(&mut self) {
+    fn push(&mut self) {
         if self.sp == STACK_SIZE {
             panic!("tyr: Stack overflow");
         }
@@ -126,7 +127,7 @@ impl<'p> Vm<'p> {
 
     /// Decrease the stack pointer by one. Panics if the stack pointer goes
     /// below zero.
-    fn decrement_sp(&mut self) {
+    fn pop(&mut self) {
         if self.sp == 0 {
             panic!("tyr: Stack underflow");
         }
@@ -145,7 +146,7 @@ impl<'p> Vm<'p> {
     /// | 0 | <-- bottom of stack
     /// +---+
     fn loadc(&mut self, value: i64) {
-        self.increment_sp();
+        self.push();
         self.stack[self.sp] = value;
     }
 
@@ -166,49 +167,49 @@ impl<'p> Vm<'p> {
     /// +----+
     fn add(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] + self.stack[self.sp-1];
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Multiplies the top two numbers on the stack, and returns the
     /// result on the top of the stack.
     fn mul(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] * self.stack[self.sp-1];
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Subtracts the top two numbers on the stack, and returns the
     /// result on the top of the stack.
     fn sub(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] - self.stack[self.sp-1];
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Divides the top two numbers on the stack, and returns the
     /// result on the top of the stack.
     fn div(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] / self.stack[self.sp-1];
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Mods the top two numbers on the stack, and returns the
     /// result on the top of the stack.
     fn modq(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] % self.stack[self.sp-1];
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Performs a bitwise AND on the top two numbers on the stack,
     /// and returns the result on the top of the stack.
     fn and(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] & self.stack[self.sp-1];
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Performs a bitwise OR on the top two numbers on the stack,
     /// and returns the result on the top of the stack.
     fn or(&mut self) {
         self.stack[self.sp-1] = self.stack[self.sp] | self.stack[self.sp-1];
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Negates the top value on the stack, while keeping sp the same.
@@ -256,7 +257,7 @@ impl<'p> Vm<'p> {
     /// | 5 | <-- value at address 1 still remains the same
     /// +---+
     fn load(&mut self) {
-        let load_loc = self.maybe_i64_to_usize(self.stack[self.sp])
+        let load_loc = util::maybe_i64_to_usize(self.stack[self.sp])
             .unwrap_or_else(|| panic!("tyr: Attempted to load an illegal value."));
 
         self.stack[self.sp] = self.stack[load_loc];
@@ -294,11 +295,11 @@ impl<'p> Vm<'p> {
     /// | 6 | <- the previous value of 5 has been overwritten by the store call
     /// +---+
     fn store(&mut self) {
-        let store_loc = self.maybe_i64_to_usize(self.stack[self.sp])
+        let store_loc = util::maybe_i64_to_usize(self.stack[self.sp])
             .unwrap_or_else(|| panic!("tyr: Attempted to store an illegal value."));
 
         self.stack[store_loc] = self.stack[self.sp - 1];
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Convenience method provided so that we can generate
@@ -332,33 +333,24 @@ impl<'p> Vm<'p> {
             self.jmp(loc);
         }
 
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Performs and indexed jump. This function expects a single argument on top
     /// of the stack, an address to jump to. Then, we add the offset provided
     /// to that address and set the program counter.
     fn jmpi(&mut self, offset: i64) {
-        let jmp_addr = self.maybe_i64_to_usize(self.stack[self.sp] + offset)
+        let jmp_addr = util::maybe_i64_to_usize(self.stack[self.sp] + offset)
             .unwrap_or_else(|| panic!("tyr: Attempted to calculate an illegal jump offset"));
         self.pc = jmp_addr;
 
-        self.decrement_sp();
+        self.pop();
     }
 
     /// Duplicate the top value on the stack.
     fn dup(&mut self) {
         self.stack[self.sp + 1] = self.stack[self.sp];
-        self.increment_sp();
-    }
-
-    // TODO: Probably shouldn't belong to this struct
-    fn maybe_i64_to_usize(&self, num: i64) -> Option<usize> {
-        if num < 0 {
-            return None;
-        }
-
-        Some(num as usize)
+        self.push();
     }
 
     fn peek(&self) -> i64 {
