@@ -1,0 +1,8 @@
+home:
+LOADC 0
+JMPZ end2
+PRINT Hello!
+end:
+LOADC 1
+PRINT Goodbye!
+HALT
